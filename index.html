@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart PDF VAT Processor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>📄 Smart PDF VAT Processor</h1>
+            <p>Extract VAT data from multi-page financial documents</p>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="layout">
+            <!-- Left Sidebar: Configuration -->
+            <aside class="config-panel">
+                <div class="panel-section">
+                    <h2>API Configuration</h2>
+                    
+                    <div class="config-group">
+                        <label class="radio-label">
+                            <input type="radio" name="api-mode" value="auto" checked>
+                            <span>Auto Mode (OpenAI)</span>
+                        </label>
+                    </div>
+
+                    <div class="config-group">
+                        <label class="radio-label">
+                            <input type="radio" name="api-mode" value="custom">
+                            <span>Custom Endpoint</span>
+                        </label>
+                    </div>
+
+                    <div id="custom-form" class="custom-form hidden">
+                        <div class="form-group">
+                            <label for="endpoint-url">Endpoint Base URL:</label>
+                            <input 
+                                type="text" 
+                                id="endpoint-url" 
+                                placeholder="https://api.example.com/v1"
+                                class="form-input"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="model-id">Model ID:</label>
+                            <input 
+                                type="text" 
+                                id="model-id" 
+                                placeholder="e.g., gpt-4o, claude-3-5-sonnet"
+                                class="form-input"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="api-token">Bearer Token:</label>
+                            <input 
+                                type="password" 
+                                id="api-token" 
+                                placeholder="sk-..."
+                                class="form-input"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3>File Upload</h3>
+                        <div class="file-upload">
+                            <input 
+                                type="file" 
+                                id="pdf-upload" 
+                                accept=".pdf"
+                                class="file-input"
+                            >
+                            <label for="pdf-upload" class="upload-label">
+                                <span class="upload-icon">📁</span>
+                                <span>Choose PDF or drag here</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <button id="process-btn" class="btn btn-primary" disabled>
+                            Process Document
+                        </button>
+                    </div>
+
+                    <div id="status-message" class="status-message"></div>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- PDF Preview Panel -->
+                <section class="pdf-preview-section">
+                    <h2>Document Preview</h2>
+                    <div id="pdf-viewer" class="pdf-viewer">
+                        <p class="placeholder-text">PDF preview will appear here</p>
+                    </div>
+                    <div id="loading-indicator" class="loading-indicator hidden">
+                        <div class="spinner"></div>
+                        <p>Extracting document content...</p>
+                    </div>
+                </section>
+
+                <!-- Data Grid Section -->
+                <section class="data-grid-section">
+                    <div class="grid-header">
+                        <h2>Extracted Transaction Data</h2>
+                        <button id="export-csv-btn" class="btn btn-secondary" disabled>
+                            📥 Export as CSV
+                        </button>
+                    </div>
+                    <div id="data-grid-container" class="data-grid-container">
+                        <table id="data-grid" class="data-grid">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date</th>
+                                    <th>Vendor/Description</th>
+                                    <th>Qty</th>
+                                    <th>Base Price</th>
+                                    <th>VAT %</th>
+                                    <th>VAT Amount (SAR)</th>
+                                    <th>Total (incl. VAT)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grid-body">
+                                <tr class="empty-row">
+                                    <td colspan="9" class="empty-message">No data extracted yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="app.js"></script>
+</body>
+</html>
