@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF VAT Table Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .config-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .config-panel h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #666;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        .drop-zone {
+            background: white;
+            border: 2px dashed #4a90d9;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #e8f4fc;
+            border-color: #2c7bc4;
+        }
+        .drop-zone p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .drop-zone .icon {
+            font-size: 48px;
+            color: #4a90d9;
+            margin-bottom: 15px;
+        }
+        .btn {
+            background: #4a90d9;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+        .btn:hover {
+            background: #3a7bc8;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .status.info {
+            background: #e8f4fc;
+            color: #2c7bc4;
+            display: block;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+        td input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        td input:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        td.numeric input {
+            text-align: right;
+        }
+        .file-info {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .file-info.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-info .filename {
+            font-weight: 500;
+            color: #333;
+        }
+        .file-info .filesize {
+            color: #666;
+            font-size: 14px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a90d9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 PDF VAT Table Extractor</h1>
+        
+        <div class="config-panel">
+            <h2>⚙️ Configuration</h2>
+            <div class="form-group">
+                <label for="apiKey">Groq API Key</label>
+                <input type="password" id="apiKey" placeholder="Enter your Groq API key (gsk_...)">
+            </div>
+            <div class="form-group">
+                <label for="model">Model</label>
+                <select id="model">
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</option>
+                    <option value="llama-3.1-70b-versatile">Llama 3.1 70B Versatile</option>
+                    <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="icon">📥</div>
+            <p><strong>Drop your PDF file here</strong></p>
+            <p>or click to browse</p>
+            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <span class="filename" id="fileName"></span>
+            <span class="filesize" id="fileSize"></span>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="table-container" id="tableContainer" style="display: none;">
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Tanggal</th>
+                        <th>Keterangan</th>
+                        <th>Harga (SAR)</th>
+                        <th>VAT (SAR)</th>
+                        <th>Total (incl. VAT)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // DOM Elements
+        const apiKeyInput = document.getElementById('apiKey');
+        const modelSelect = document.getElementById('model');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const statusDiv = document.getElementById('status');
+        const tableContainer = document.getElementById('tableContainer');
+        const tableBody = document.getElementById('tableBody');
+
+        // Load saved configuration from localStorage
+        function loadConfig() {
+            const savedApiKey = localStorage.getItem('groq_api_key');
+            const savedModel = localStorage.getItem('groq_model');
+            
+            if (savedApiKey) {
+                apiKeyInput.value = savedApiKey;
+            }
+            if (savedModel) {
+                modelSelect.value = savedModel;
+            }
+        }
+
+        // Save configuration to localStorage
+        function saveConfig() {
+            localStorage.setItem('groq_api_key', apiKeyInput.value);
+            localStorage.setItem('groq_model', modelSelect.value);
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Hide status message
+        function hideStatus() {
+            statusDiv.className = 'status';
+            statusDiv.textContent = '';
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Extract text from PDF
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const totalPages = pdf.numPages;
+            const pageTexts = [];
+
+            showStatus(`Extracting text from ${totalPages} pages...`, 'info');
+
+            for (let i = 1; i <= totalPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const textItems = textContent.items.map(item => item.str);
+                pageTexts.push({
+                    page: i,
+                    text: textItems.join(' ')
+                });
+            }
+
+            return pageTexts;
+        }
+
+        // Call Groq API
+        async function callGroqAPI(pageTexts, apiKey, model) {
+            const allText = pageTexts.map(p => `--- Page ${p.page} ---\n${p.text}`).join('\n\n');
+
+            const prompt = `You are a financial document analyzer. Analyze this multi-page PDF document text and extract all transaction items into a structured JSON format.
+
+The document contains financial transactions with items listed on the first page and receipts/details on subsequent pages.
+
+Your task is to:
+1. Extract all transaction items from the document
+2. For each item, find or calculate the VAT (Value Added Tax) amount - it may be explicitly stated on receipt pages or needs to be calculated (typically 15% in Saudi Arabia)
+3. Return a JSON object with a "transactions" array
+
+Each transaction should have:
+- no: sequential number (integer)
+- tanggal: date in format like "1 Jan 2026"
+- keterangan: description in Indonesian/Arabic/English
+- harga_sar: base price in SAR (number, 2 decimal places)
+- vat_sar: VAT amount in SAR (number, 2 decimal places)
+- total_incl_vat: total including VAT (number, 2 decimal places)
+
+Here is the document text:
+
+${allText}
+
+Return ONLY valid JSON in this exact format:
+{
+  "transactions": [
+    {
+      "no": 1,
+      "tanggal": "1 Jan 2026",
+      "keterangan": "Description here",
+      "harga_sar": 32.00,
+      "vat_sar": 4.80,
+      "total_incl_vat": 36.80
+    }
+  ]
+}
+
+Do not include any explanation, only the JSON.`;
+
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful assistant that extracts financial data from documents and returns only valid JSON.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.1,
+                    max_tokens: 4096
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `API request failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // Parse and display results
+        function displayResults(jsonString) {
+            try {
+                // Try to extract JSON from the response
+                const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    throw new Error('No valid JSON found in response');
+                }
+                
+                const data = JSON.parse(jsonMatch[0]);
+                
+                if (!data.transactions || !Array.isArray(data.transactions)) {
+                    throw new Error('Invalid response format: missing transactions array');
+                }
+
+                tableBody.innerHTML = '';
+                
+                data.transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td><input type="number" value="${transaction.no || ''}" min="1"></td>
+                        <td><input type="text" value="${transaction.tanggal || ''}"></td>
+                        <td><input type="text" value="${transaction.keterangan || ''}"></td>
+                        <td class="numeric"><input type="number" step="0.01" value="${transaction.harga_sar || ''}" onchange="calculateTotal(this)"></td>
+                        <td class="numeric"><input type="number" step="0.01" value="${transaction.vat_sar || ''}" onchange="calculateTotal(this)"></td>
+                        <td class="numeric"><input type="number" step="0.01" value="${transaction.total_incl_vat || ''}"></td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+
+                tableContainer.style.display = 'block';
+                showStatus('✅ Successfully extracted ' + data.transactions.length + ' transactions!', 'success');
+            } catch (error) {
+                console.error('Parse error:', error);
+                console.error('Response was:', jsonString);
+                throw new Error('Failed to parse API response: ' + error.message);
+            }
+        }
+
+        // Calculate total when price or VAT changes
+        window.calculateTotal = function(input) {
+            const row = input.closest('tr');
+            const inputs = row.querySelectorAll('input');
+            const price = parseFloat(inputs[3].value) || 0;
+            const vat = parseFloat(inputs[4].value) || 0;
+            inputs[5].value = (price + vat).toFixed(2);
+        };
+
+        // Process file
+        async function processFile(file) {
+            try {
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) {
+                    showStatus('❌ Please enter your Groq API key', 'error');
+                    return;
+                }
+
+                const model = modelSelect.value;
+
+                // Save config
+                saveConfig();
+
+                // Show file info
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.add('show');
+
+                // Hide previous results
+                tableContainer.style.display = 'none';
+                hideStatus();
+
+                // Extract text from PDF
+                const pageTexts = await extractTextFromPDF(file);
+
+                // Call Groq API
+                showStatus('🤖 Sending to Groq AI for VAT extraction...', 'info');
+                const response = await callGroqAPI(pageTexts, apiKey, model);
+
+                // Display results
+                displayResults(response);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // Event Listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                processFile(files[0]);
+            } else {
+                showStatus('❌ Please drop a PDF file', 'error');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        apiKeyInput.addEventListener('change', saveConfig);
+        modelSelect.addEventListener('change', saveConfig);
+
+        // Load config on startup
+        loadConfig();
+    </script>
+</body>
+</html>
